@@ -1,0 +1,5 @@
+Revision history for perl distribution SQL-Abstract-Plugin-Apply
+
+0.01 Not Released
+ - Started project
+ - CROSS and OUTER APPLY table valued function join support
