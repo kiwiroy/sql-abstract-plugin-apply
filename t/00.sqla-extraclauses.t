@@ -23,8 +23,8 @@ subtest 'Track extraclauses assumptions' => sub {
     'union',  'update',    'values'
     ],
     'renderer list include "apply"';
-  is_deeply [$sqla->clauses_of('select')],
-    ['with', 'select', 'from', 'where', 'setop', 'group_by', 'having', 'order_by'], 'ExtraClauses...';
+  is_deeply [$sqla->clauses_of('select')], [qw(with select from where setop group_by having order_by)],
+    'ExtraClauses...';
 };
 
 subtest 'select and subselect with limit' => sub {
@@ -42,7 +42,7 @@ subtest 'select and subselect with limit' => sub {
         select   => [qw(product_name entry_date)],
         from     => [{product => {-as => ['p']}}],
         where    => {'c.id' => 'p.cat_id'},
-        order_by => {-desc  => 'c.entry_date'},
+        order_by => {-desc  => 'p.entry_date'},
         limit    => 10,
         offset   => 20,
       },
@@ -56,9 +56,22 @@ subtest 'select and subselect with limit' => sub {
           SELECT product_name, entry_date
             FROM product AS p
            WHERE c.id = p.cat_id
-           ORDER BY c.entry_date DESC
+           ORDER BY p.entry_date DESC
            LIMIT 10 OFFSET 20
         )/, [], 'subselect limits have different rules? - not added to bind!';
+};
+
+subtest 'SQLA2 plugin registration' => sub {
+  ok my $sqla = SQL::Abstract->new;
+  is_deeply [$sqla->clauses_of('select')], [qw(select from where order_by)], 'w/o ExtraClauses...';
+  $sqla->plugin('+ExtraClauses');
+  is_deeply [$sqla->clauses_of('select')], [qw(with select from where setop group_by having order_by)],
+    'with ExtraClauses...';
+  $sqla->plugin('+ExtraClauses');
+
+  # Hmmm, this looks wrong
+  is_deeply [$sqla->clauses_of('select')],
+    [qw(with with select from where setop group_by having setop group_by having order_by)], 'with ExtraClauses...';
 };
 
 done_testing;

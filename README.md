@@ -6,21 +6,28 @@ SQL::Abstract::Plugin::Apply - Cross and outer apply for SQL::Abstract 2+
 
     # compose the plugin
     my $sqla = SQL::Abstract->new->plugin('+Apply');
+    # SELECT c.category, p.product_name, p.entry_date
+    #   FROM category AS c
+    #  CROSS APPLY (
+    #    SELECT product_name, entry_date
+    #      FROM product AS p
+    #     WHERE c.id = p.cat_id
+    #     ORDER BY p.entry_date DESC
+    #  )
     $sqla->select({
-    from => [
-      {category => {-as => ['c']}},
-      -apply => {
-        to => {
-          -select => {
-            select   => [qw(product_name entry_date)],
-            from     => [{product => {-as => ['p']}}],
-            where    => {'c.id' => 'p.cat_id'},
-            order_by => {-desc  => 'c.entry_date'},
-            limit    => 3
+      from => [
+        {category => {-as => ['c']}},
+        -apply => {
+          to => {
+            -select => {
+              select   => [qw(product_name entry_date)],
+              from     => [{product => {-as => ['p']}}],
+              where    => {'c.id' => 'p.cat_id'},
+              order_by => {-desc  => 'p.entry_date'},
+              }
             }
-          }
-        },
-        type => 'cross'
+          },
+          type => 'cross'
       ],
       select => [qw(c.category p.product_name p.entry_date)]
     });

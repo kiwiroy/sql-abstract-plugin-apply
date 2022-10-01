@@ -5,7 +5,7 @@ use SQL::Abstract;
 use SQL::Abstract::Test import => [qw(is_same_sql is_same_sql_bind)];
 use SQL::Abstract::Plugin::Apply;
 
-subtest 'apply plugin' => sub {
+subtest 'Compose the plugin using apply_to' => sub {
   ok my $sqla = SQL::Abstract->new;
   ok +SQL::Abstract::Plugin::Apply->apply_to($sqla), 'apply_to applies ok';
 
@@ -27,11 +27,21 @@ subtest 'apply plugin' => sub {
     'renderer list include "apply"';
 
   # Check clauses
-  is_deeply [$sqla->clauses_of('select')],
-    ['with', 'select', 'from', 'where', 'setop', 'group_by', 'having', 'order_by'], 'As from ExtraClauses...';
+  is_deeply [$sqla->clauses_of('select')], [qw(with select from where setop group_by having order_by)],
+    'As from ExtraClauses...';
 };
 
-subtest 'select and cross apply' => sub {
+subtest 'Check interaction with S::A::P::ExtraClauses' => sub {
+  ok my $sqla = SQL::Abstract->new;
+  ok $sqla->plugin('+ExtraClauses'), 'composed ok';
+  ok $sqla->plugin('+Apply'),        'composed ok';
+
+  # this fails if ExtraClauses (2.000001) is registered multiple times.
+  is_deeply [$sqla->clauses_of('select')], [qw(with select from where setop group_by having order_by)],
+    'As from ExtraClauses...';
+};
+
+subtest 'SELECT and CROSS APPLY' => sub {
   my $sqla = SQL::Abstract->new->plugin('+Apply');
 
   # Table Valued Function
@@ -59,7 +69,7 @@ subtest 'select and cross apply' => sub {
             select   => [qw(product_name entry_date)],
             from     => [{product => {-as => ['p']}}],
             where    => {'c.id' => 'p.cat_id'},
-            order_by => {-desc  => 'c.entry_date'},
+            order_by => {-desc  => 'p.entry_date'},
           }
         }
       }
@@ -74,11 +84,11 @@ subtest 'select and cross apply' => sub {
        SELECT product_name, entry_date
          FROM product AS p
         WHERE c.id = p.cat_id
-        ORDER BY c.entry_date DESC
+        ORDER BY p.entry_date DESC
      )/, 'cross apply - similar to inner join';
 };
 
-subtest 'Cross Apply with limits' => sub {
+subtest 'CROSS APPLY with limits' => sub {
   my $sqlac = SQL::Abstract->new->plugin('+Apply');
   $sqlac->clauses_of(select => ($sqlac->clauses_of('select'), qw(limit offset),));
 
@@ -91,7 +101,7 @@ subtest 'Cross Apply with limits' => sub {
             select   => [qw(product_name entry_date)],
             from     => [{product => {-as => ['p']}}],
             where    => {'c.id' => 'p.cat_id'},
-            order_by => {-desc  => 'c.entry_date'},
+            order_by => {-desc  => 'p.entry_date'},
             limit    => 10
           }
         }
@@ -108,12 +118,12 @@ subtest 'Cross Apply with limits' => sub {
          SELECT product_name, entry_date
            FROM product AS p
           WHERE c.id = p.cat_id
-          ORDER BY c.entry_date DESC
+          ORDER BY p.entry_date DESC
           LIMIT 10
        )/, [], 'see 00.sqla-extraclauses.t tests';
 };
 
-subtest 'Outer apply' => sub {
+subtest 'OUTER APLY' => sub {
   my $sqla = SQL::Abstract->new->plugin('+Apply');
 
   # Table Valued Function
